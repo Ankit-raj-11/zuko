@@ -1,0 +1,31 @@
+# Environment
+.env
+.env.local
+
+# Foundry
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/dependencies/
+
+# Node
+node_modules/
+.next/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+lcov.info
+coverage-html/
+
+# Build artifacts
+*.abi
+*.bin
