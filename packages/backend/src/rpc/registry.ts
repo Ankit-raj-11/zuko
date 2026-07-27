@@ -1,9 +1,9 @@
-import { Contract, JsonRpcProvider } from "ethers";
+import { Contract, JsonRpcProvider, ZeroAddress } from "ethers";
 
 export const REGISTRY_ADDRESS = "0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019";
 
 const REGISTRY_ABI = [
-  "function getContractAddressByName(string calldata name) external view returns (address)",
+  "function getContractAddressByName(string name) view returns (address)",
 ];
 
 const ASSET_MANAGER_CONTROLLER_ABI = [
@@ -20,7 +20,7 @@ const FASSET_ABI = [
 
 export interface ResolvedContracts {
   ftsoV2: string;
-  fdcVerification: string;
+  fdcVerif: string;
   assetManager: string;
 }
 
@@ -50,18 +50,30 @@ export async function resolveAssetManager(
   throw new Error(`AssetManager for ${targetSymbol} not found`);
 }
 
-export async function resolveContracts(provider: JsonRpcProvider): Promise<ResolvedContracts> {
+export async function resolveContracts(
+  provider: JsonRpcProvider
+): Promise<ResolvedContracts> {
   const registry = new Contract(REGISTRY_ADDRESS, REGISTRY_ABI, provider);
-  const [ftsoV2, fdcVerification, assetManager] = await Promise.all([
-    registry.getContractAddressByName("FtsoV2") as Promise<string>,
-    registry.getContractAddressByName("FdcVerification") as Promise<string>,
-    resolveAssetManager(registry, provider, "FXRP"),
-  ]);
 
-  const zeroAddr = "0x0000000000000000000000000000000000000000";
-  if (ftsoV2 === zeroAddr) throw new Error("FtsoV2 resolved to zero address");
-  if (fdcVerification === zeroAddr) throw new Error("FdcVerification resolved to zero address");
-  if (assetManager === zeroAddr) throw new Error("AssetManager(FXRP) resolved to zero address");
+  const [ftsoV2, fdcVerif, assetManager] = await Promise.all([
+    registry.getContractAddressByName("FtsoV2"),
+    registry.getContractAddressByName("FdcVerification"),
+    resolveAssetManager(registry, provider, "FXRP").catch(() => registry.getContractAddressByName("AssetManager")),
+  ]).catch((err) => {
+    console.error("[FATAL] ContractRegistry resolution failed:", err);
+    throw err;
+  });
 
-  return { ftsoV2, fdcVerification, assetManager };
+  const zero = ZeroAddress;
+  if (ftsoV2 === zero || fdcVerif === zero || assetManager === zero) {
+    console.error("[FATAL] One or more contracts resolved to zero address.", {
+      ftsoV2,
+      fdcVerif,
+      assetManager,
+    });
+    throw new Error("One or more contracts resolved to zero address");
+  }
+
+  console.log("[Zuko] Contracts resolved:", { ftsoV2, fdcVerif, assetManager });
+  return { ftsoV2, fdcVerif, assetManager };
 }

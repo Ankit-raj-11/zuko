@@ -4,20 +4,24 @@ export interface IRpcProvider {
   send(method: string, params: unknown[]): Promise<unknown>;
 }
 
-/**
- * QuorumProvider — 3-endpoint RPC provider requiring 2-of-3 agreement.
- * Protects Zuko from single RPC failure, lag, or malicious RPC response spoofing.
- */
 export class QuorumProvider {
   private providers: IRpcProvider[];
 
-  constructor(providers: (IRpcProvider | string)[]) {
-    this.providers = providers.map((p) =>
+  constructor(rpcUrlsOrProviders: (IRpcProvider | string)[]) {
+    if (rpcUrlsOrProviders.length < 3) {
+      throw new Error(
+        "[FATAL] QuorumProvider requires exactly 3 RPC URLs/providers. Got: " +
+          rpcUrlsOrProviders.length
+      );
+    }
+    this.providers = rpcUrlsOrProviders.map((p) =>
       typeof p === "string" ? new JsonRpcProvider(p) : p
     );
-    if (this.providers.length < 3) {
-      throw new Error("QuorumProvider requires exactly 3 RPC providers");
-    }
+    console.log(
+      "[Zuko] QuorumProvider initialized with",
+      this.providers.length,
+      "providers"
+    );
   }
 
   async call(method: string, params: unknown[]): Promise<unknown> {
@@ -25,31 +29,38 @@ export class QuorumProvider {
       this.providers.map((p) => p.send(method, params))
     );
 
-    const fulfilled: unknown[] = [];
-    for (const r of results) {
-      if (r.status === "fulfilled") {
-        fulfilled.push(r.value);
-      }
-    }
+    const fulfilled = results
+      .filter((r): r is PromiseFulfilledResult<unknown> => r.status === "fulfilled")
+      .map((r) => r.value);
 
+    // Fewer than 2 responded — hard fail, do not guess
     if (fulfilled.length < 2) {
-      throw new Error("Quorum failure: <2 RPCs responded successfully");
+      const errors = results
+        .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+        .map((r) => r.reason?.message);
+      throw new Error(
+        `[FATAL] Quorum failure: only ${fulfilled.length}/3 providers responded. ` +
+          `Errors: ${errors.join(" | ")}`
+      );
     }
 
-    const str0 = JSON.stringify(fulfilled[0]);
-    const str1 = JSON.stringify(fulfilled[1]);
+    const serialize = (v: unknown) => JSON.stringify(v);
 
-    if (str0 === str1) {
+    // Check first two agree
+    if (serialize(fulfilled[0]) === serialize(fulfilled[1])) {
       return fulfilled[0];
     }
 
-    // Tie-break with third provider if available
-    if (fulfilled.length >= 3) {
-      const str2 = JSON.stringify(fulfilled[2]);
-      if (str0 === str2) return fulfilled[0];
-      if (str1 === str2) return fulfilled[1];
+    // First two disagree — check if third agrees with either
+    if (fulfilled[2] !== undefined) {
+      if (serialize(fulfilled[2]) === serialize(fulfilled[0])) return fulfilled[0];
+      if (serialize(fulfilled[2]) === serialize(fulfilled[1])) return fulfilled[1];
     }
 
-    throw new Error("Quorum disagreement: RPCs returned different values");
+    // All three disagree, or only 2 responded and they disagree
+    throw new Error(
+      `[FATAL] Quorum disagreement: RPCs returned different values for ${method}. ` +
+        `Results: ${fulfilled.map(serialize).join(" | ")}`
+    );
   }
 }

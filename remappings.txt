@@ -1,1 +1,1 @@
-forge-std/=packages/contracts/dependencies/forge-std/src/
+forge-std/=dependencies/forge-std/src/

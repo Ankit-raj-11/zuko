@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
+import { ethers } from "ethers";
 import { QuorumProvider } from "./rpc/quorum";
+import { resolveContracts, ResolvedContracts } from "./rpc/registry";
 import { InMemoryRedisStore } from "./cache/redis";
 import { FTSORingBuffer } from "./feeds/ringBuffer";
 import { EventIndexer } from "./events/eventIndexer";
@@ -21,7 +23,12 @@ const ringBuffer = new FTSORingBuffer(store);
 const indexer = new EventIndexer(store, quorum);
 const agentPoller = new AgentPoller();
 
+let contracts: ResolvedContracts | null = null;
+
 async function main() {
+  const provider = new ethers.JsonRpcProvider(RPC_1);
+  contracts = await resolveContracts(provider);
+
   await server.register(cors, { origin: "*" });
   await server.register(websocket);
 
@@ -63,7 +70,12 @@ async function main() {
 
   // Health check endpoint
   server.get("/health", async () => {
-    return { status: "ok", timestamp: Date.now(), rule3Enabled: indexer.rule3Enabled };
+    return {
+      status: "ok",
+      timestamp: Date.now(),
+      rule3Enabled: indexer.isRule3Enabled(),
+      contracts,
+    };
   });
 
   const port = parseInt(process.env.PORT || "3001", 10);
@@ -79,4 +91,4 @@ if (require.main === module) {
   });
 }
 
-export { server, main, quorum, ringBuffer, indexer, agentPoller, broadcaster };
+export { server, main, quorum, ringBuffer, indexer, agentPoller, broadcaster, contracts };

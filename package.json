@@ -1,0 +1,12 @@
+{
+  "name": "zuko-monorepo",
+  "version": "1.0.1",
+  "private": true,
+  "scripts": {
+    "test:contracts": "cd packages/contracts && forge test -vvv",
+    "test:backend": "cd packages/backend && npx ts-node test/backend.test.ts",
+    "test:invariants": "cd packages/contracts && forge test --match-contract ZukoGuardianInvariantTest --invariant-runs 1000 --invariant-depth 100",
+    "test:tee:strict": "cd packages/rule-engine && \"C:\\Program Files\\Go\\bin\\go.exe\" test -v ./test/reproducible_build_test.go",
+    "test:all": "pnpm test:contracts && pnpm test:backend && pnpm test:tee:strict"
+  }
+}
