@@ -1,11 +1,11 @@
 import assert from "assert";
 import test, { describe } from "node:test";
-import { QuorumProvider, IRpcProvider } from "../src/rpc/quorum";
-import { InMemoryRedisStore } from "../src/cache/redis";
-import { FTSORingBuffer } from "../src/feeds/ringBuffer";
-import { EventIndexer } from "../src/events/eventIndexer";
-import { AgentPoller } from "../src/agents/agentPoller";
-import { Broadcaster } from "../src/ws/broadcaster";
+import { QuorumProvider, IRpcProvider } from "../src/rpc/quorum.js";
+import { InMemoryRedisStore } from "../src/cache/redis.js";
+import { FTSORingBuffer } from "../src/feeds/ringBuffer.js";
+import { EventIndexer } from "../src/events/eventIndexer.js";
+import { AgentPoller } from "../src/agents/agentPoller.js";
+import { Broadcaster } from "../src/ws/broadcaster.js";
 
 describe("Phase 1 Backend Unit Tests", () => {
   test("PHASE-1-TC-01: QuorumProvider — 2-of-3 agreement passes", async () => {

@@ -9,6 +9,7 @@ import { FTSORingBuffer } from "./feeds/ringBuffer";
 import { EventIndexer } from "./events/eventIndexer";
 import { AgentPoller } from "./agents/agentPoller";
 import { Broadcaster } from "./ws/broadcaster";
+import { DemoOrchestrator } from "./demo/orchestrator";
 
 const server = Fastify({ logger: true });
 const store = new InMemoryRedisStore();
@@ -66,6 +67,27 @@ async function main() {
       total: 0,
       timestamp: Date.now(),
     });
+  });
+
+  // REST: Demo Orchestrator Endpoints for Attack Presentation
+  const orchestrator = new DemoOrchestrator(broadcaster);
+
+  server.get("/api/demo/status", async (_req, reply) => {
+    return reply.send(orchestrator.getStatus());
+  });
+
+  server.post("/api/demo/trigger", async (req, reply) => {
+    const { scenarioId } = (req.body as { scenarioId?: string }) || {};
+    if (!scenarioId) {
+      return reply.status(400).send({ error: "Missing scenarioId parameter" });
+    }
+    const state = await orchestrator.triggerScenario(scenarioId);
+    return reply.send(state);
+  });
+
+  server.post("/api/demo/resume", async (_req, reply) => {
+    const state = await orchestrator.resumeGuardian();
+    return reply.send(state);
   });
 
   // Health check endpoint
